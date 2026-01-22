@@ -13,7 +13,7 @@ jobs:
     # Optional: Require manual approval for production
     environment:
       name: production
-      url: https://dbc-prod-instance.cloud.databricks.com
+      url: https://dbc-ce0ce842-10b5.cloud.databricks.com
     
     steps:
       # Step 1: Checkout code
