@@ -1,0 +1,65 @@
+name: Deploy to Development
+
+# Trigger: On push to any branch except main
+on:
+  push:
+    branches:
+      - '**'
+      - '!main'  # Exclude main branch
+
+jobs:
+  deploy-dev:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # Step 2: Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      
+      # Step 3: Install dependencies
+      - name: Install dependencies
+        run: |
+          pip install databricks-cli uv
+          uv --version
+      
+      # Step 4: Configure Databricks CLI for Dev
+      - name: Configure Databricks CLI
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_DEV_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_DEV_TOKEN }}
+        run: |
+          echo "[DEFAULT]" > ~/.databrickscfg
+          echo "host = $DATABRICKS_HOST" >> ~/.databrickscfg
+          echo "token = $DATABRICKS_TOKEN" >> ~/.databrickscfg
+      
+      # Step 5: Validate bundle
+      - name: Validate Databricks bundle
+        run: |
+          databricks bundle validate -t dev
+      
+      # Step 6: Deploy to Dev
+      - name: Deploy to Development
+        run: |
+          databricks bundle deploy -t dev
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_DEV_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_DEV_TOKEN }}
+      
+      # Step 7: Comment on PR (optional)
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ Successfully deployed to Development environment!'
+            })
