@@ -2,11 +2,6 @@ name: Databricks Asset Bundle Deploy - Git to Prod
 
 on:
   workflow_dispatch:
-    inputs:
-      bundle_name:
-        description: 'Specific bundle to deploy (leave empty for all)'
-        required: false
-        type: string
 
   push:
     branches:
@@ -35,52 +30,23 @@ jobs:
           echo "Testing DEV workspace..."
           databricks workspace list /Shared
 
-      # ✅ Validate bundles in DEV
-      - name: Validate bundles (DEV)
+      # ✅ Validate bundle in DEV
+      - name: Validate bundle (DEV)
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_DEV_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_DEV_TOKEN }}
         run: |
-          cd Aseetbundles/dev_cicd
+          cd dev_cicd
+          databricks bundle validate --target dev
 
-          for bundle_dir in */; do
-            if [ -f "$bundle_dir/databricks.yml" ]; then
-              echo "Validating bundle: $bundle_dir"
-              cd "$bundle_dir"
-
-              databricks bundle validate --target dev || exit 1
-
-              cd ..
-            fi
-          done
-
-      # 🚀 Deploy to PROD
-      - name: Deploy bundles to Production
+      # 🚀 Deploy bundle to PROD
+      - name: Deploy bundle to PROD
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_PROD_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_PROD_TOKEN }}
         run: |
-          cd Aseetbundles/dev_cicd
-          BUNDLE_NAME="${{ github.event.inputs.bundle_name }}"
-
-          if [ -n "$BUNDLE_NAME" ]; then
-            echo "Deploying specific bundle to PROD: $BUNDLE_NAME"
-            cd "$BUNDLE_NAME"
-
-            databricks bundle deploy --target prod
-          else
-            echo "Deploying all bundles to PROD..."
-            for bundle_dir in */; do
-              if [ -f "$bundle_dir/databricks.yml" ]; then
-                echo "Deploying bundle: $bundle_dir"
-                cd "$bundle_dir"
-
-                databricks bundle deploy --target prod
-
-                cd ..
-              fi
-            done
-          fi
+          cd dev_cicd
+          databricks bundle deploy --target prod
 
       - name: Send success notification
         if: success()
@@ -89,7 +55,7 @@ jobs:
             curl -X POST ${{ secrets.SLACK_WEBHOOK }} \
               -H 'Content-Type: application/json' \
               -d "{
-                \"text\": \"✅ Databricks Asset Bundles deployed to PROD successfully\"
+                \"text\": \"✅ Databricks Asset Bundle deployed to PROD successfully\"
               }"
           fi
 
