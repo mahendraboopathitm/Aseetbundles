@@ -14,12 +14,6 @@ on:
     paths:
       - 'dev_cicd/**'
 
-env:
-  DEV_WORKSPACE_URL: ${{ secrets.DATABRICKS_DEV_HOST }}
-  DEV_TOKEN: ${{ secrets.DATABRICKS_DEV_TOKEN }}
-  PROD_WORKSPACE_URL: ${{ secrets.DATABRICKS_PROD_HOST }}
-  PROD_TOKEN: ${{ secrets.DATABRICKS_PROD_TOKEN }}
-
 jobs:
   deploy-databricks-bundles:
     runs-on: ubuntu-latest
@@ -32,19 +26,20 @@ jobs:
         run: |
           curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
 
-          databricks configure --host "$DEV_WORKSPACE_URL" --token "$DEV_TOKEN" --profile DEV
-          databricks configure --host "$PROD_WORKSPACE_URL" --token "$PROD_TOKEN" --profile PROD
-
-      - name: Verify Databricks connections
+      # 🔍 Verify DEV connection
+      - name: Verify DEV Databricks connection
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_DEV_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_DEV_TOKEN }}
         run: |
           echo "Testing DEV workspace..."
-          databricks workspace list /Shared --profile DEV
+          databricks workspace list /Shared
 
-          echo "Testing PROD workspace..."
-          databricks workspace list /Shared --profile PROD
-
-      # ✅ Validate bundles in DEV (safety check)
-      - name: Validate bundles (Git source)
+      # ✅ Validate bundles in DEV
+      - name: Validate bundles (DEV)
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_DEV_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_DEV_TOKEN }}
         run: |
           cd databricks-bundles/Assetbundles
 
@@ -53,9 +48,7 @@ jobs:
               echo "Validating bundle: $bundle_dir"
               cd "$bundle_dir"
 
-              databricks bundle validate \
-                --profile DEV \
-                --target dev || exit 1
+              databricks bundle validate --target dev || exit 1
 
               cd ..
             fi
@@ -63,6 +56,9 @@ jobs:
 
       # 🚀 Deploy to PROD
       - name: Deploy bundles to Production
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_PROD_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_PROD_TOKEN }}
         run: |
           cd databricks-bundles/Assetbundles
           BUNDLE_NAME="${{ github.event.inputs.bundle_name }}"
@@ -71,9 +67,7 @@ jobs:
             echo "Deploying specific bundle to PROD: $BUNDLE_NAME"
             cd "$BUNDLE_NAME"
 
-            databricks bundle deploy \
-              --profile PROD \
-              --target prod
+            databricks bundle deploy --target prod
           else
             echo "Deploying all bundles to PROD..."
             for bundle_dir in */; do
@@ -81,9 +75,7 @@ jobs:
                 echo "Deploying bundle: $bundle_dir"
                 cd "$bundle_dir"
 
-                databricks bundle deploy \
-                  --profile PROD \
-                  --target prod
+                databricks bundle deploy --target prod
 
                 cd ..
               fi
@@ -96,9 +88,9 @@ jobs:
           if [ -n "${{ secrets.SLACK_WEBHOOK }}" ]; then
             curl -X POST ${{ secrets.SLACK_WEBHOOK }} \
               -H 'Content-Type: application/json' \
-              -d '{
-                "text": "✅ Databricks Asset Bundles deployed to PROD successfully"
-              }'
+              -d "{
+                \"text\": \"✅ Databricks Asset Bundles deployed to PROD successfully\"
+              }"
           fi
 
       - name: Send failure notification
@@ -107,12 +99,12 @@ jobs:
           if [ -n "${{ secrets.SLACK_WEBHOOK }}" ]; then
             curl -X POST ${{ secrets.SLACK_WEBHOOK }} \
               -H 'Content-Type: application/json' \
-              -d '{
-                "text": "❌ Databricks Asset Bundle PROD deployment FAILED"
-              }'
+              -d "{
+                \"text\": \"❌ Databricks Asset Bundle PROD deployment FAILED\"
+              }"
           fi
 
       - name: Cleanup
         if: always()
         run: |
-          rm -f ~/.databrickscfg
+          rm -f ~/.databrickscfg || true
