@@ -12,7 +12,7 @@ on:
     branches:
       - main
     paths:
-      - 'databricks-bundles/**'
+      - 'dev_cicd/**'
 
 env:
   DEV_WORKSPACE_URL: ${{ secrets.DATABRICKS_DEV_HOST }}
