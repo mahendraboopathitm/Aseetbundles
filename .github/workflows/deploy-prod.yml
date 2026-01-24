@@ -41,7 +41,7 @@ jobs:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_DEV_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_DEV_TOKEN }}
         run: |
-          cd databricks-bundles/Assetbundles
+          cd Aseetbundles/dev_cicd
 
           for bundle_dir in */; do
             if [ -f "$bundle_dir/databricks.yml" ]; then
@@ -60,7 +60,7 @@ jobs:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_PROD_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_PROD_TOKEN }}
         run: |
-          cd databricks-bundles/Assetbundles
+          cd Aseetbundles/dev_cicd
           BUNDLE_NAME="${{ github.event.inputs.bundle_name }}"
 
           if [ -n "$BUNDLE_NAME" ]; then
